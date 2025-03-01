@@ -3,7 +3,6 @@ if (!defined('__XE__')) exit();
 
 /**
  * Webhook Sender Addon
- * 보드활동알림 방식으로 정확히 동일하게 구현
  */
 
 // 필요한 함수 파일 포함
@@ -14,7 +13,6 @@ if(Context::get('module') == 'admin') {
     return;
 }
 
-// 보드활동알림 방식 - 문서 이벤트만 체크
 if ($called_position == 'after_module_proc')
 {
     // 게시글 작성 - procBoardInsertDocument일 때만 처리
