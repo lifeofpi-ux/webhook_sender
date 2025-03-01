@@ -1,0 +1,24 @@
+# OS 생성 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 에디터 파일
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# 임시 파일
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# 개발 환경 파일
+.env
+.env.local
+.env.development
+.env.test
+.env.production 
