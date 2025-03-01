@@ -43,7 +43,7 @@
 ```json
 {
   "title": "게시글 제목",
-  "content": "게시글 내용 (최대 250자)",
+  "content": "게시글 내용 (최대 800자)",
   "module_srl": "게시판 모듈 SRL",
   "board_name": "게시판 이름",
   "url": "게시글 URL",

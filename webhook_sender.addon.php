@@ -168,8 +168,8 @@ if ($called_position == 'after_module_proc')
         $title = $oDocument->getTitleText();
         $content = strip_tags($oDocument->getContentText());
         
-        if(strlen($content) > 250) {
-            $content = substr($content, 0, 250) . '...';
+        if(strlen($content) > 800) {
+            $content = substr($content, 0, 800) . '...';
         }
         
         // 작성자 정보
