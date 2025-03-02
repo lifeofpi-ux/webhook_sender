@@ -30,9 +30,27 @@ function webhook_sender_prepare_data($oDocument, $mid, $document_srl, $is_new = 
     $title = $oDocument->getTitleText();
     $content = strip_tags($oDocument->getContentText());
     
-    // 컨텐츠 길이 제한
-    if(strlen($content) > 800) {
-        $content = substr($content, 0, 800) . '...';
+    // 콘텐츠 길이 제한 설정 가져오기
+    $content_length_limit = 0; // 기본값: 글자수 제한없음
+    
+    // 애드온 설정 불러오기
+    $oAddonModel = getModel('addon');
+    if(is_object($oAddonModel) && method_exists($oAddonModel, 'getAddonConfig')) {
+        $addon_config = $oAddonModel->getAddonConfig('webhook_sender');
+        
+        if(isset($addon_config->content_length_limit)) {
+            $content_length_limit = intval($addon_config->content_length_limit);
+        }
+        // 객체를 배열처럼 접근하는 대신 is_array 체크 후 접근
+        elseif(is_array($addon_config) && isset($addon_config['content_length_limit'])) {
+            $content_length_limit = intval($addon_config['content_length_limit']);
+        }
+    }
+    
+    // 콘텐츠 길이 제한 적용
+    if($content_length_limit > 0 && strlen($content) > $content_length_limit) {
+        $content = substr($content, 0, $content_length_limit) . '...';
+        webhook_sender_log("콘텐츠 길이가 제한되었습니다. 제한: {$content_length_limit}자", 'INFO');
     }
     
     // 작성자 정보
