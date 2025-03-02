@@ -87,7 +87,7 @@ function webhook_sender_send($webhook_url, $data, $async = true) {
         'verify' => true, // SSL 인증서 검증 활성화
     );
     
-    // 비동기 요청을 위한 Queue 사용 (라이믹스 기능)
+    // 비동기 요청을 위한 Queue 사용 (라이믹스 코어 기능 활용으로 변경) 기진곰님 제안 사항 반영
     if ($async && class_exists('Rhymix\\Framework\\Drivers\\Queue')) {
         try {
             // Queue에 작업 등록
