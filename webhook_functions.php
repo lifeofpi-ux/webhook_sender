@@ -50,6 +50,9 @@ function webhook_sender_prepare_data($oDocument, $mid, $document_srl, $is_new = 
     $regdate = $oDocument->get('regdate');
     $last_update = $oDocument->get('last_update');
     
+    // 특수 문자가 포함된 내용 처리
+    $content = preg_replace('/[^\p{L}\p{N}\s\.\,\?\!\:\;\-\_\(\)\[\]\{\}\'\"\%\&\@\#\+\=\*\/\\\\]/u', '', $content);
+    
     // 웹훅 데이터 구성
     $webhook_data = [
         'title' => $title,
@@ -74,7 +77,14 @@ function webhook_sender_prepare_data($oDocument, $mid, $document_srl, $is_new = 
  */
 function webhook_sender_send($webhook_url, $data, $async = true) {
     // JSON 형식으로 데이터 변환
-    $json_data = json_encode($data);
+    $json_data = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    
+    // JSON 인코딩 오류 확인
+    if(json_last_error() !== JSON_ERROR_NONE) {
+        webhook_sender_log("JSON 인코딩 오류: " . json_last_error_msg() . ". 다시 시도합니다.", 'ERROR');
+        // 오류 발생 시 대체 옵션으로 시도
+        $json_data = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    }
     
     // HTTP 요청 설정
     $headers = array(
