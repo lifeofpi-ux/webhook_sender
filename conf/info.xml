@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon version="0.5.0">
+<addon version="0.2">
 	<title xml:lang="ko">라이믹스 게시물 웹훅 발송 애드온</title>
-	<description xml:lang="ko">라이믹스의 게시물 작성시 웹훅을 통해 외부 서비스로 알림을 보냅니다. 라이믹스의 내장 라이브러리를 활용하여 안전하고 안정적인 요청을 처리합니다.</description>
+	<description xml:lang="ko">라이믹스의 게시물 작성시 웹훅을 통해 외부 서비스로 알림을 보냅니다.</description>
 	<version>0.5.0</version>
-	<date>2024-03-02</date>
-	<author email_address="indend007@gmail.com" >
+	<date>2025-03-02</date>
+	<author email_address="indend007@gmail.com" link="https://bwissue.com">
 		<name xml:lang="ko">라이프오브파이</name>
 	</author>
 	<extra_vars>
