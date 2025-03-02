@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon version="0.2">
+<addon version="0.5.0">
 	<title xml:lang="ko">라이믹스 게시물 웹훅 발송 애드온</title>
-	<description xml:lang="ko">라이믹스의 게시물 작성시 웹훅을 통해 외부 서비스로 알림을 보냅니다.</description>
-	<version>0.2.0</version>
-	<date>2025-03-01</date>
+	<description xml:lang="ko">라이믹스의 게시물 작성시 웹훅을 통해 외부 서비스로 알림을 보냅니다. 라이믹스의 내장 라이브러리를 활용하여 안전하고 안정적인 요청을 처리합니다.</description>
+	<version>0.5.0</version>
+	<date>2024-03-02</date>
 	<author email_address="indend007@gmail.com" >
 		<name xml:lang="ko">라이프오브파이</name>
 	</author>
@@ -14,11 +14,6 @@
 					<title xml:lang="ko">웹훅 URL</title>
 					<description xml:lang="ko">알림을 보낼 웹훅 URL을 입력하세요. (예: https://n8n.example.com/webhook/...)</description>
 				</var>
-				<var name="target_module_srls" type="text">
-					<title xml:lang="ko">웹훅 발송 게시판</title>
-					<description xml:lang="ko">웹훅을 발송할 게시판의 module_srl을 쉼표(,)로 구분하여 입력하세요. 비워두면 모든 게시판에 적용됩니다.</description>
-				</var>
-
 		</group>
 		<group>
 			<title xml:lang="ko">웹훅 트리거 설정</title>
