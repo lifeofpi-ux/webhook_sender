@@ -28,7 +28,6 @@ function webhook_sender_prepare_data($oDocument, $mid, $document_srl, $is_new = 
 
     // 기본 정보 수집
     $title = $oDocument->getTitleText();
-    $content = strip_tags($oDocument->getContentText());
     
     // 콘텐츠 길이 제한 설정 가져오기
     $content_length_limit = 0; // 기본값: 글자수 제한없음
@@ -47,10 +46,15 @@ function webhook_sender_prepare_data($oDocument, $mid, $document_srl, $is_new = 
         }
     }
     
-    // 콘텐츠 길이 제한 적용
-    if($content_length_limit > 0 && strlen($content) > $content_length_limit) {
-        $content = substr($content, 0, $content_length_limit) . '...';
+    // strip_tags 대신 라이믹스의 getSummary() 메서드 사용
+    // getSummary()는 HTML 태그를 더 효과적으로 제거하고 요약 텍스트를 생성
+    if($content_length_limit > 0) {
+        $content = $oDocument->getSummary($content_length_limit);
         webhook_sender_log("콘텐츠 길이가 제한되었습니다. 제한: {$content_length_limit}자", 'INFO');
+    } else {
+        // 길이 제한이 없을 경우 전체 내용을 가져옴 (기본값은 대략 500자)
+        $max_summary_length = 2000; // 충분히 큰 값으로 설정
+        $content = $oDocument->getSummary($max_summary_length);
     }
     
     // 작성자 정보
