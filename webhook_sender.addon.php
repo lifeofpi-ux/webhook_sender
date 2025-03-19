@@ -128,14 +128,39 @@ else if ($called_position == 'after_module_proc')
         $is_update = false;
         $is_new = false;
         
-        if($oDocumentCheck->isExists() && $oDocumentCheck->get('status') !== 'TEMP') {
+        // 1. update_order 값으로 먼저 판단 (0보다 크면 확실한 수정)
+        if ($oDocument->get('update_order') > 0) {
             $is_update = true;
             $is_new = false;
-            webhook_sender_log("게시물 수정 감지: {$document_srl}", 'INFO');
-        } else {
-            $is_new = true;
-            $is_update = false;
-            webhook_sender_log("새 게시물 작성 감지: {$document_srl}", 'INFO');
+            webhook_sender_log("게시물 수정 감지 (update_order > 0): {$document_srl}", 'INFO');
+        }
+        // 2. 현재 요청 act 값과 status 값 확인
+        // 추가 확인: 요청에 있는 document_srl을 확인하는 부분을 추가
+        elseif (Context::get('document_srl') && $oDocumentCheck->isExists() && $oDocumentCheck->get('status') !== 'TEMP') {
+            // 이미 발행된 문서가 있고, 임시저장이 아닌 경우 (일반적인 수정)
+            $is_update = true;
+            $is_new = false;
+            webhook_sender_log("게시물 수정 감지 (기존 문서 존재): {$document_srl}", 'INFO');
+        }
+        else {
+            // 3. regdate와 last_update 비교 - 시간 차이가 적으면 새 글로 판단
+            $regdate = strtotime($oDocument->get('regdate'));
+            $last_update = strtotime($oDocument->get('last_update'));
+            $time_diff = abs($last_update - $regdate);
+            
+            // 4. 등록일과 수정일의 차이가 1분 이내면 새 글로 간주
+            if ($time_diff < 60) {
+                $is_new = true;
+                $is_update = false;
+                webhook_sender_log("새 게시물 작성 감지 (시간차 {$time_diff}초): {$document_srl}", 'INFO');
+            }
+            // 5. 일단 새 글로 처리하고 로그에 기록
+            else {
+                // 임시 저장에서 정식 발행으로 전환되는 경우도 새 글로 처리
+                $is_new = true;
+                $is_update = false;
+                webhook_sender_log("새 게시물 작성 감지 (임시저장에서 발행): {$document_srl}, 시간차: {$time_diff}초", 'INFO');
+            }
         }
         
         // 트리거 옵션에 따라 웹훅 발송 여부 결정
