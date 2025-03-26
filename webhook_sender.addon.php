@@ -46,6 +46,12 @@ else if ($called_position == 'after_module_proc')
     // 현재 모듈 정보 가져오기
     $current_module_info = Context::get('current_module_info');
     
+    // 글 작성 페이지에서는 웹훅 발송 안함
+    if(Context::get('act') == 'dispBoardWrite')
+    {
+        return;
+    }
+    
     // 애드온 설정 불러오기
     $addon_config = null;
     $oAddonModel = getModel('addon');
@@ -93,97 +99,171 @@ else if ($called_position == 'after_module_proc')
     }
     
     // 게시글 작성 - procBoardInsertDocument일 때만 처리
-    if (Context::get('act') == 'procBoardInsertDocument')
+    if (Context::get('act') == 'procBoardInsertDocument' || Context::get('act') == 'procBoardUpdateDocument')
     {
-        // 요청 데이터 가져오기
-        $data = Context::getRequestVars();
-        
-        // document_srl 가져오기 (여러 방법 시도)
-        $document_srl = null;
-        if($this->get('document_srl')) {
-            $document_srl = $this->get('document_srl');
-        } elseif(Context::get('document_srl')) {
-            $document_srl = Context::get('document_srl');
-        } elseif(isset($data->document_srl)) {
-            $document_srl = $data->document_srl;
-        }
-        
-        if(!$document_srl) {
-            webhook_sender_log("document_srl을 찾을 수 없음", 'ERROR');
-            return;
-        }
-        
-        // 문서 정보 로드
-        $oDocumentModel = getModel('document');
-        $oDocument = $oDocumentModel->getDocument($document_srl);
-        $document_srl_check = Context::get('document_srl');
-        $oDocumentCheck = $oDocumentModel->getDocument($document_srl_check);
-        
-        if(!$oDocument->isExists()) {
-            webhook_sender_log("문서가 존재하지 않음: {$document_srl}", 'ERROR');
-            return;
-        }
-        
-        // 새 글인지 수정인지 확인
-        $is_update = false;
-        $is_new = false;
-        
-        // 1. update_order 값으로 먼저 판단 (0보다 크면 확실한 수정)
-        if ($oDocument->get('update_order') > 0) {
-            $is_update = true;
-            $is_new = false;
-            webhook_sender_log("게시물 수정 감지 (update_order > 0): {$document_srl}", 'INFO');
-        }
-        // 2. 현재 요청 act 값과 status 값 확인
-        // 추가 확인: 요청에 있는 document_srl을 확인하는 부분을 추가
-        elseif (Context::get('document_srl') && $oDocumentCheck->isExists() && $oDocumentCheck->get('status') !== 'TEMP') {
-            // 이미 발행된 문서가 있고, 임시저장이 아닌 경우 (일반적인 수정)
-            $is_update = true;
-            $is_new = false;
-            webhook_sender_log("게시물 수정 감지 (기존 문서 존재): {$document_srl}", 'INFO');
-        }
-        else {
-            // 3. regdate와 last_update 비교 - 시간 차이가 적으면 새 글로 판단
-            $regdate = strtotime($oDocument->get('regdate'));
-            $last_update = strtotime($oDocument->get('last_update'));
-            $time_diff = abs($last_update - $regdate);
+        try {
+            // 현재 액션 로깅
+            webhook_sender_log("현재 액션: " . Context::get('act'), 'INFO');
             
-            // 4. 등록일과 수정일의 차이가 1분 이내면 새 글로 간주
-            if ($time_diff < 60) {
-                $is_new = true;
-                $is_update = false;
-                webhook_sender_log("새 게시물 작성 감지 (시간차 {$time_diff}초): {$document_srl}", 'INFO');
+            // 요청 데이터 가져오기
+            $data = Context::getRequestVars();
+            webhook_sender_log("요청 데이터: " . print_r($data, true), 'DEBUG');
+            
+            // document_srl 가져오기 (여러 방법 시도)
+            $document_srl = null;
+            if(isset($data->document_srl)) {
+                $document_srl = $data->document_srl;
+                webhook_sender_log("요청 데이터에서 document_srl 가져옴: " . $document_srl, 'DEBUG', true);
+            } elseif(Context::get('document_srl')) {
+                $document_srl = Context::get('document_srl');
+                webhook_sender_log("Context에서 document_srl 가져옴: " . $document_srl, 'DEBUG', true);
+            } else {
+                // Context 객체에서 직접 시도
+                $oContext = Context::getInstance();
+                if(method_exists($oContext, 'get') && $oContext->get('document_srl')) {
+                    $document_srl = $oContext->get('document_srl');
+                    webhook_sender_log("Context 객체에서 document_srl 가져옴: " . $document_srl, 'DEBUG', true);
+                }
             }
-            // 5. 일단 새 글로 처리하고 로그에 기록
-            else {
-                // 임시 저장에서 정식 발행으로 전환되는 경우도 새 글로 처리
-                $is_new = true;
-                $is_update = false;
-                webhook_sender_log("새 게시물 작성 감지 (임시저장에서 발행): {$document_srl}, 시간차: {$time_diff}초", 'INFO');
+            
+            // webhook_sender.addon 2.php에서 사용하는 방법 추가
+            if(!$document_srl) {
+                // this 객체에서 시도 (addon 2.php 방식)
+                if(isset($this) && method_exists($this, 'get') && $this->get('document_srl')) {
+                    $document_srl = $this->get('document_srl');
+                    webhook_sender_log("this 객체에서 document_srl 가져옴: " . $document_srl, 'INFO', true);
+                }
+                
+                // Request 객체에서 시도
+                $oRequest = Context::getRequestVars();
+                if(isset($oRequest->document_srl) && $oRequest->document_srl) {
+                    $document_srl = $oRequest->document_srl;
+                    webhook_sender_log("Request 객체에서 document_srl 가져옴: " . $document_srl, 'INFO', true);
+                }
             }
-        }
-        
-        // 트리거 옵션에 따라 웹훅 발송 여부 결정
-        if($is_new && $trigger_on_new !== 'Y') {
-            webhook_sender_log("새 게시물 작성 시 웹훅 발송이 비활성화되어 있습니다.", 'INFO');
-            return;
-        }
-        
-        if($is_update && $trigger_on_update !== 'Y') {
-            webhook_sender_log("게시물 수정 시 웹훅 발송이 비활성화되어 있습니다.", 'INFO');
-            return;
-        }
-        
-        // 웹훅 데이터 준비
-        $webhook_data = webhook_sender_prepare_data($oDocument, $data->mid, $document_srl, $is_new);
-        
-        // 웹훅 전송 (비동기)
-        $result = webhook_sender_send($webhook_url, $webhook_data, true);
-        
-        if($result) {
-            webhook_sender_log("웹훅 발송 요청 성공: " . ($is_new ? "새 게시물" : "수정된 게시물"), 'INFO');
-        } else {
-            webhook_sender_log("웹훅 발송 요청 실패: " . ($is_new ? "새 게시물" : "수정된 게시물"), 'ERROR');
+            
+            if(!$document_srl) {
+                webhook_sender_log("최종적으로 document_srl을 찾을 수 없어 웹훅 발송을 중단합니다.", 'ERROR', true);
+                return;
+            }
+            
+            // 정수로 변환하여 유효성 확인
+            $document_srl = intval($document_srl);
+            if($document_srl <= 0) {
+                webhook_sender_log("유효하지 않은 document_srl 값: {$document_srl}", 'ERROR', true);
+                return;
+            }
+            
+            webhook_sender_log("유효한 document_srl 확인: {$document_srl}, 문서 정보 로드 시도", 'INFO', true);
+            
+            // 문서 정보 가져오기
+            $oDocumentModel = getModel('document');
+            $oDocument = $oDocumentModel->getDocument($document_srl);
+            
+            if(!$oDocument || !$oDocument->isExists()) {
+                webhook_sender_log("문서가 존재하지 않음: {$document_srl}", 'ERROR', true);
+                return;
+            }
+            
+            webhook_sender_log("문서 정보 로드 성공 - 문서번호: {$document_srl}, 제목: " . $oDocument->getTitle(), 'INFO', true);
+            
+            // 새 글/수정 글 판별
+            $is_new = false;
+            $is_update = false;
+            
+            // regdate와 last_update 비교
+            $regdate = $oDocument->get('regdate');
+            $last_update = $oDocument->get('last_update');
+            
+            webhook_sender_log("문서 날짜 비교 - regdate: {$regdate}, last_update: {$last_update}, 문서번호: {$document_srl}", 'INFO', true);
+            
+            if ($regdate === $last_update) {
+                $is_new = true;
+                $is_update = false;  // 명시적으로 설정
+                webhook_sender_log("새 게시물 작성 감지 (regdate = last_update): {$document_srl}", 'INFO', true);
+            } else {
+                $is_update = true;
+                $is_new = false;
+                webhook_sender_log("게시물 수정 감지 (regdate != last_update): {$document_srl}", 'INFO', true);
+            }
+            
+            // 트리거 옵션에 따라 웹훅 발송 여부 결정
+            if($is_new && $trigger_on_new !== 'Y') {
+                webhook_sender_log("새 게시물 작성 시 웹훅 발송이 비활성화되어 있습니다. 문서번호: {$document_srl}", 'INFO', true);
+                return;
+            }
+            
+            if($is_update && $trigger_on_update !== 'Y') {
+                webhook_sender_log("게시물 수정 시 웹훅 발송이 비활성화되어 있습니다. 문서번호: {$document_srl}", 'INFO', true);
+                return;
+            }
+            
+            webhook_sender_log("웹훅 발송 조건 충족 - 타입: " . ($is_new ? '새 게시물' : '수정된 게시물') . ", 문서번호: {$document_srl}", 'INFO', true);
+            
+            // 웹훅 데이터 준비
+            $webhook_data = array(
+                'title' => $oDocument->getTitle(),
+                'content' => $oDocument->getSummary(500),
+                'module_srl' => $oDocument->get('module_srl'),
+                'board_name' => $oDocument->getModuleName(),
+                'url' => $oDocument->getPermanentUrl(),
+                'message' => $is_new ? '새 게시물이 작성되었습니다.' : '게시물이 수정되었습니다.',
+                'author' => $oDocument->getNickName(),
+                'member_srl' => $oDocument->get('member_srl'),
+                'regdate' => date('Y-m-d H:i:s', strtotime($regdate)),
+                'last_update' => date('Y-m-d H:i:s', strtotime($last_update)),
+                'is_new' => $is_new,
+                'is_update' => $is_update,
+                'timestamp' => time(),
+                'webhook_sent_at' => date('Y-m-d H:i:s')
+            );
+            
+            webhook_sender_log("웹훅 전송 준비 완료 - 제목: " . $webhook_data['title'] . ", 타입: " . ($is_new ? '새 게시물' : '수정된 게시물'), 'INFO', true);
+
+            // 웹훅 전송 (비동기, 최대 3회 재시도)
+            $max_retries = 3;
+            $retry_count = 0;
+            $success = false;
+
+            while (!$success && $retry_count < $max_retries) {
+                try {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $webhook_url);
+                    curl_setopt($ch, CURLOPT_POST, 1);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($webhook_data));
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    curl_setopt($ch, CURLOPT_NOSIGNAL, 1);
+
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $curl_error = curl_error($ch);
+                    curl_close($ch);
+
+                    if ($http_code >= 200 && $http_code < 300) {
+                        $success = true;
+                        webhook_sender_log("웹훅 발송 성공 - 문서번호: {$document_srl}, HTTP 코드: {$http_code}", 'INFO', true);
+                    } else {
+                        throw new Exception("웹훅 발송 실패 (HTTP {$http_code}): {$curl_error}, 응답: " . substr($response, 0, 200));
+                    }
+                } catch (Exception $e) {
+                    $retry_count++;
+                    webhook_sender_log("웹훅 발송 실패 (시도 {$retry_count}/{$max_retries}): " . $e->getMessage(), 'ERROR', true);
+                    
+                    if ($retry_count < $max_retries) {
+                        sleep(1);
+                    }
+                }
+            }
+
+            if (!$success) {
+                webhook_sender_log("최대 재시도 횟수 초과 - 웹훅 발송 실패 (문서번호: {$document_srl}, URL: {$webhook_url})", 'ERROR', true);
+            }
+
+        } catch (Exception $e) {
+            webhook_sender_log("예외 발생: " . $e->getMessage(), 'ERROR', true);
         }
     }
 } 

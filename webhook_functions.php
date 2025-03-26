@@ -2,19 +2,30 @@
 if (!defined('__XE__')) exit();
 
 /**
- * 로그 기록 함수 - 필요한 경우에만 기록
+ * 로그 기록 함수 - 필요한 정보만 효율적으로 기록
  */
 function webhook_sender_log($message, $level = 'INFO', $force_debug = false) {
-    // 로그 레벨에 따라 시스템 로그에 기록
+    // 로그 디렉토리 경로 설정
+    $log_dir = RX_BASEDIR . 'files/logs';
+    
+    // 로그 디렉토리가 없으면 생성
+    if (!file_exists($log_dir)) {
+        @mkdir($log_dir, 0755, true);
+    }
+    
+    // 로그 파일 경로
+    $log_file = $log_dir . '/webhook_sender.log';
+    
+    // 로그 메시지 구성
+    $log_prefix = '[' . date('Y-m-d H:i:s') . '] [WEBHOOK_SENDER] ' . $level . ': ';
+    $log_message = $log_prefix . $message . "\n";
+    
+    // 로그 파일에 기록
+    @file_put_contents($log_file, $log_message, FILE_APPEND);
+    
+    // 에러 레벨인 경우나 강제 디버그 모드인 경우 PHP 에러 로그에도 기록
     if ($level === 'ERROR' || $level === 'CRITICAL' || $force_debug) {
-        $log_prefix = '[WEBHOOK_SENDER] ' . $level . ': ';
-        
-        // 라이믹스의 디버그 함수 활용 (가능한 경우)
-        if (function_exists('debugPrint') && $force_debug) {
-            debugPrint($log_prefix . $message);
-        } else {
-            error_log($log_prefix . $message);
-        }
+        error_log($log_prefix . $message);
     }
 }
 
