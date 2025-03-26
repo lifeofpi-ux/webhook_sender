@@ -113,16 +113,16 @@ else if ($called_position == 'after_module_proc')
             $document_srl = null;
             if(isset($data->document_srl)) {
                 $document_srl = $data->document_srl;
-                webhook_sender_log("요청 데이터에서 document_srl 가져옴: " . $document_srl, 'DEBUG', true);
+                webhook_sender_log("요청 데이터에서 document_srl 가져옴: " . $document_srl, 'DEBUG');
             } elseif(Context::get('document_srl')) {
                 $document_srl = Context::get('document_srl');
-                webhook_sender_log("Context에서 document_srl 가져옴: " . $document_srl, 'DEBUG', true);
+                webhook_sender_log("Context에서 document_srl 가져옴: " . $document_srl, 'DEBUG');
             } else {
                 // Context 객체에서 직접 시도
                 $oContext = Context::getInstance();
                 if(method_exists($oContext, 'get') && $oContext->get('document_srl')) {
                     $document_srl = $oContext->get('document_srl');
-                    webhook_sender_log("Context 객체에서 document_srl 가져옴: " . $document_srl, 'DEBUG', true);
+                    webhook_sender_log("Context 객체에서 document_srl 가져옴: " . $document_srl, 'DEBUG');
                 }
             }
             
@@ -131,41 +131,41 @@ else if ($called_position == 'after_module_proc')
                 // this 객체에서 시도 (addon 2.php 방식)
                 if(isset($this) && method_exists($this, 'get') && $this->get('document_srl')) {
                     $document_srl = $this->get('document_srl');
-                    webhook_sender_log("this 객체에서 document_srl 가져옴: " . $document_srl, 'INFO', true);
+                    webhook_sender_log("this 객체에서 document_srl 가져옴: " . $document_srl, 'INFO');
                 }
                 
                 // Request 객체에서 시도
                 $oRequest = Context::getRequestVars();
                 if(isset($oRequest->document_srl) && $oRequest->document_srl) {
                     $document_srl = $oRequest->document_srl;
-                    webhook_sender_log("Request 객체에서 document_srl 가져옴: " . $document_srl, 'INFO', true);
+                    webhook_sender_log("Request 객체에서 document_srl 가져옴: " . $document_srl, 'INFO');
                 }
             }
             
             if(!$document_srl) {
-                webhook_sender_log("최종적으로 document_srl을 찾을 수 없어 웹훅 발송을 중단합니다.", 'ERROR', true);
+                webhook_sender_log("최종적으로 document_srl을 찾을 수 없어 웹훅 발송을 중단합니다.", 'ERROR');
                 return;
             }
             
             // 정수로 변환하여 유효성 확인
             $document_srl = intval($document_srl);
             if($document_srl <= 0) {
-                webhook_sender_log("유효하지 않은 document_srl 값: {$document_srl}", 'ERROR', true);
+                webhook_sender_log("유효하지 않은 document_srl 값: {$document_srl}", 'ERROR');
                 return;
             }
             
-            webhook_sender_log("유효한 document_srl 확인: {$document_srl}, 문서 정보 로드 시도", 'INFO', true);
+            webhook_sender_log("유효한 document_srl 확인: {$document_srl}, 문서 정보 로드 시도", 'INFO');
             
             // 문서 정보 가져오기
             $oDocumentModel = getModel('document');
             $oDocument = $oDocumentModel->getDocument($document_srl);
             
             if(!$oDocument || !$oDocument->isExists()) {
-                webhook_sender_log("문서가 존재하지 않음: {$document_srl}", 'ERROR', true);
+                webhook_sender_log("문서가 존재하지 않음: {$document_srl}", 'ERROR');
                 return;
             }
             
-            webhook_sender_log("문서 정보 로드 성공 - 문서번호: {$document_srl}, 제목: " . $oDocument->getTitle(), 'INFO', true);
+            webhook_sender_log("문서 정보 로드 성공 - 문서번호: {$document_srl}, 제목: " . $oDocument->getTitle(), 'INFO');
             
             // 새 글/수정 글 판별
             $is_new = false;
@@ -175,30 +175,30 @@ else if ($called_position == 'after_module_proc')
             $regdate = $oDocument->get('regdate');
             $last_update = $oDocument->get('last_update');
             
-            webhook_sender_log("문서 날짜 비교 - regdate: {$regdate}, last_update: {$last_update}, 문서번호: {$document_srl}", 'INFO', true);
+            webhook_sender_log("문서 날짜 비교 - regdate: {$regdate}, last_update: {$last_update}, 문서번호: {$document_srl}", 'INFO');
             
             if ($regdate === $last_update) {
                 $is_new = true;
                 $is_update = false;  // 명시적으로 설정
-                webhook_sender_log("새 게시물 작성 감지 (regdate = last_update): {$document_srl}", 'INFO', true);
+                webhook_sender_log("새 게시물 작성 감지 (regdate = last_update): {$document_srl}", 'INFO');
             } else {
                 $is_update = true;
                 $is_new = false;
-                webhook_sender_log("게시물 수정 감지 (regdate != last_update): {$document_srl}", 'INFO', true);
+                webhook_sender_log("게시물 수정 감지 (regdate != last_update): {$document_srl}", 'INFO');
             }
             
             // 트리거 옵션에 따라 웹훅 발송 여부 결정
             if($is_new && $trigger_on_new !== 'Y') {
-                webhook_sender_log("새 게시물 작성 시 웹훅 발송이 비활성화되어 있습니다. 문서번호: {$document_srl}", 'INFO', true);
+                webhook_sender_log("새 게시물 작성 시 웹훅 발송이 비활성화되어 있습니다. 문서번호: {$document_srl}", 'INFO');
                 return;
             }
             
             if($is_update && $trigger_on_update !== 'Y') {
-                webhook_sender_log("게시물 수정 시 웹훅 발송이 비활성화되어 있습니다. 문서번호: {$document_srl}", 'INFO', true);
+                webhook_sender_log("게시물 수정 시 웹훅 발송이 비활성화되어 있습니다. 문서번호: {$document_srl}", 'INFO');
                 return;
             }
             
-            webhook_sender_log("웹훅 발송 조건 충족 - 타입: " . ($is_new ? '새 게시물' : '수정된 게시물') . ", 문서번호: {$document_srl}", 'INFO', true);
+            webhook_sender_log("웹훅 발송 조건 충족 - 타입: " . ($is_new ? '새 게시물' : '수정된 게시물') . ", 문서번호: {$document_srl}", 'INFO');
             
             // 웹훅 데이터 준비
             $webhook_data = array(
@@ -218,7 +218,7 @@ else if ($called_position == 'after_module_proc')
                 'webhook_sent_at' => date('Y-m-d H:i:s')
             );
             
-            webhook_sender_log("웹훅 전송 준비 완료 - 제목: " . $webhook_data['title'] . ", 타입: " . ($is_new ? '새 게시물' : '수정된 게시물'), 'INFO', true);
+            webhook_sender_log("웹훅 전송 준비 완료 - 제목: " . $webhook_data['title'] . ", 타입: " . ($is_new ? '새 게시물' : '수정된 게시물'), 'INFO');
 
             // 웹훅 전송 (비동기, 최대 3회 재시도)
             $max_retries = 3;
@@ -244,13 +244,13 @@ else if ($called_position == 'after_module_proc')
 
                     if ($http_code >= 200 && $http_code < 300) {
                         $success = true;
-                        webhook_sender_log("웹훅 발송 성공 - 문서번호: {$document_srl}, HTTP 코드: {$http_code}", 'INFO', true);
+                        webhook_sender_log("웹훅 발송 성공 - 문서번호: {$document_srl}, HTTP 코드: {$http_code}", 'INFO');
                     } else {
                         throw new Exception("웹훅 발송 실패 (HTTP {$http_code}): {$curl_error}, 응답: " . substr($response, 0, 200));
                     }
                 } catch (Exception $e) {
                     $retry_count++;
-                    webhook_sender_log("웹훅 발송 실패 (시도 {$retry_count}/{$max_retries}): " . $e->getMessage(), 'ERROR', true);
+                    webhook_sender_log("웹훅 발송 실패 (시도 {$retry_count}/{$max_retries}): " . $e->getMessage(), 'ERROR');
                     
                     if ($retry_count < $max_retries) {
                         sleep(1);
@@ -259,11 +259,11 @@ else if ($called_position == 'after_module_proc')
             }
 
             if (!$success) {
-                webhook_sender_log("최대 재시도 횟수 초과 - 웹훅 발송 실패 (문서번호: {$document_srl}, URL: {$webhook_url})", 'ERROR', true);
+                webhook_sender_log("최대 재시도 횟수 초과 - 웹훅 발송 실패 (문서번호: {$document_srl}, URL: {$webhook_url})", 'ERROR');
             }
 
         } catch (Exception $e) {
-            webhook_sender_log("예외 발생: " . $e->getMessage(), 'ERROR', true);
+            webhook_sender_log("예외 발생: " . $e->getMessage(), 'ERROR');
         }
     }
 } 

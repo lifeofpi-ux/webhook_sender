@@ -5,6 +5,49 @@ if (!defined('__XE__')) exit();
  * 로그 기록 함수 - 필요한 정보만 효율적으로 기록
  */
 function webhook_sender_log($message, $level = 'INFO', $force_debug = false) {
+    // 애드온 설정 불러오기
+    static $enable_logging = null;
+    static $config_log_level = null;
+    static $log_levels = ['DEBUG' => 0, 'INFO' => 1, 'ERROR' => 2];
+    
+    // 설정을 한번만 로드 (성능 향상)
+    if($enable_logging === null) {
+        $enable_logging = 'Y'; // 기본값: 활성화
+        $config_log_level = 'INFO'; // 기본값: INFO 레벨
+        
+        $oAddonModel = getModel('addon');
+        if(is_object($oAddonModel) && method_exists($oAddonModel, 'getAddonConfig')) {
+            $addon_config = $oAddonModel->getAddonConfig('webhook_sender');
+            
+            // 객체 또는 배열 형태로 설정 가져오기
+            if(isset($addon_config->enable_logging)) {
+                $enable_logging = $addon_config->enable_logging;
+            } elseif(is_array($addon_config) && isset($addon_config['enable_logging'])) {
+                $enable_logging = $addon_config['enable_logging'];
+            }
+            
+            if(isset($addon_config->log_level)) {
+                $config_log_level = $addon_config->log_level;
+            } elseif(is_array($addon_config) && isset($addon_config['log_level'])) {
+                $config_log_level = $addon_config['log_level'];
+            }
+        }
+    }
+    
+    // 로깅이 비활성화된 경우 종료 (force_debug가 true일 때만 예외)
+    if($enable_logging === 'N' && !$force_debug) {
+        return;
+    }
+    
+    // 현재 레벨과 설정된 레벨 가져오기
+    $current_level = isset($log_levels[$level]) ? $log_levels[$level] : 1; // 기본값은 INFO
+    $config_level = isset($log_levels[$config_log_level]) ? $log_levels[$config_log_level] : 1;
+    
+    // 설정된 로그 레벨보다 낮은 레벨이고 강제 디버그가 아니면 기록하지 않음
+    if($current_level < $config_level && !$force_debug) {
+        return;
+    }
+    
     // 로그 디렉토리 경로 설정
     $log_dir = RX_BASEDIR . 'files/logs';
     
@@ -16,6 +59,16 @@ function webhook_sender_log($message, $level = 'INFO', $force_debug = false) {
     // 로그 파일 경로
     $log_file = $log_dir . '/webhook_sender.log';
     
+    // 로그 파일 크기 제한 (기본 10MB)
+    $max_size = 10 * 1024 * 1024; // 10MB
+    if(file_exists($log_file) && filesize($log_file) > $max_size) {
+        $backup_file = $log_file . '.bak';
+        if(file_exists($backup_file)) {
+            @unlink($backup_file);
+        }
+        @rename($log_file, $backup_file);
+    }
+    
     // 로그 메시지 구성
     $log_prefix = '[' . date('Y-m-d H:i:s') . '] [WEBHOOK_SENDER] ' . $level . ': ';
     $log_message = $log_prefix . $message . "\n";
@@ -23,8 +76,8 @@ function webhook_sender_log($message, $level = 'INFO', $force_debug = false) {
     // 로그 파일에 기록
     @file_put_contents($log_file, $log_message, FILE_APPEND);
     
-    // 에러 레벨인 경우나 강제 디버그 모드인 경우 PHP 에러 로그에도 기록
-    if ($level === 'ERROR' || $level === 'CRITICAL' || $force_debug) {
+    // 오류 레벨인 경우에만 PHP 에러 로그에 기록 (강제 디버그 포함)
+    if($level === 'ERROR' || $force_debug) {
         error_log($log_prefix . $message);
     }
 }

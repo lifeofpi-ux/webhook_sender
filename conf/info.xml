@@ -43,5 +43,33 @@
 					<default>0</default>
 				</var>
 		</group>
+		<group>
+			<title xml:lang="ko">로그 설정</title>
+				<var name="enable_logging" type="select">
+					<title xml:lang="ko">로그 기록 활성화</title>
+					<description xml:lang="ko">웹훅 발송 과정의 로그를 파일에 기록합니다. (파일 경로: files/logs/webhook_sender.log)</description>
+					<options value="Y">
+					<title xml:lang="ko">활성화</title>
+					</options>
+					<options value="N">
+					<title xml:lang="ko">비활성화</title>
+					</options>
+					<default>Y</default>
+				</var>
+				<var name="log_level" type="select">
+					<title xml:lang="ko">로그 레벨</title>
+					<description xml:lang="ko">기록할 로그의 상세 레벨을 지정합니다. 상위 레벨은 하위 레벨의 로그를 포함합니다.</description>
+					<options value="DEBUG">
+					<title xml:lang="ko">디버그 (모든 로그)</title>
+					</options>
+					<options value="INFO">
+					<title xml:lang="ko">정보 (일반 정보 이상)</title>
+					</options>
+					<options value="ERROR">
+					<title xml:lang="ko">오류 (오류 로그만)</title>
+					</options>
+					<default>INFO</default>
+				</var>
+		</group>
 	</extra_vars>
 </addon>
